@@ -1,0 +1,151 @@
+package com.alk.dto;
+
+import com.alk.dto.datasource.*;
+
+public class ManageRequestDto {
+
+    private String action;   // INSERT, UPDATE, DELETE, SEARCH
+    private String source;   // Aadhaar, PAN, Voter, Driving
+
+    private AadhaarRequestDto aadhaar;
+    private PanRequestDto pan;
+    private VoterRequestDto voter;
+    private DrivingLicenseRequestDto driving;
+
+    public String getAction() { return action; }
+    public void setAction(String action) { this.action = action; }
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+
+    public AadhaarRequestDto getAadhaar() { return aadhaar; }
+    public void setAadhaar(AadhaarRequestDto aadhaar) { this.aadhaar = aadhaar; }
+
+    public PanRequestDto getPan() { return pan; }
+    public void setPan(PanRequestDto pan) { this.pan = pan; }
+
+    public VoterRequestDto getVoter() { return voter; }
+    public void setVoter(VoterRequestDto voter) { this.voter = voter; }
+
+    public DrivingLicenseRequestDto getDriving() { return driving; }
+    public void setDriving(DrivingLicenseRequestDto driving) { this.driving = driving; }
+}
+
+
+
+
+
+package com.alk.dto;
+
+import java.time.LocalDate;
+
+public class CommonPersonDto {
+
+    private String forename;
+    private String middleName;
+    private String lastName;
+    private LocalDate dob;
+    private String gender;
+    private String address;
+
+    // getters + setters
+}
+
+
+
+
+package com.alk.dto;
+
+public class PiiResponseDto {
+
+    private String piiPk;             // hashed PII identifier
+    private String aadhaarLinkageKey; // ALK (UUID)
+
+    private int aadhaarCount;
+    private int panCount;
+    private int voterIdCount;
+    private int dlCount;
+
+    // getters + setters
+}
+
+
+
+
+package com.alk.dto.datasource;
+
+import com.alk.dto.CommonPersonDto;
+
+public class AadhaarRequestDto {
+
+    private String aadhaarNumber;
+    private CommonPersonDto person;
+    private String parentGuardianName;
+    private String mobile;
+    private String email;
+
+    // getters + setters
+}
+
+
+
+
+package com.alk.dto.datasource;
+
+import com.alk.dto.CommonPersonDto;
+
+public class PanRequestDto {
+
+    private String panNumber;
+    private CommonPersonDto person;
+
+    private String fatherName;
+    private String motherName;
+    private String phone;
+    private String email;
+    private String aadhaarLinked;
+
+    // getters + setters
+}
+
+
+
+
+package com.alk.dto.datasource;
+
+import com.alk.dto.CommonPersonDto;
+import java.time.LocalDate;
+
+public class DrivingLicenseRequestDto {
+
+    private String dlNumber;
+    private CommonPersonDto person;
+
+    private LocalDate issueDate;
+    private LocalDate expiryDate;
+    private String licenseClass;
+    private String height;
+    private String bloodType;
+
+    // getters + setters
+}
+
+
+package com.alk.dto.datasource;
+
+import com.alk.dto.CommonPersonDto;
+import java.time.LocalDate;
+
+public class VoterRequestDto {
+
+    private String epicNumber;
+    private CommonPersonDto person;
+
+    private String relativeName;
+    private byte[] photograph;
+    private String electoralDistrict;
+    private String assemblyConstituency;
+    private String partNumber;
+
+    // getters + setters
+}
