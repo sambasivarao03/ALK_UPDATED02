@@ -473,3 +473,192 @@ public class AadhaarHandler implements BaseHandler {
         return null; // logic later
     }
 }
+
+
+
+
+
+
+
+package com.alk.service.impl;
+
+import com.alk.dto.ManageRequestDto;
+import com.alk.dto.PiiResponseDto;
+import com.alk.service.LinkageService;
+
+// validators
+import com.alk.service.validator.AadhaarValidator;
+import com.alk.service.validator.PanValidator;
+import com.alk.service.validator.VoterValidator;
+import com.alk.service.validator.DrivingValidator;
+
+// handlers
+import com.alk.service.handler.AadhaarHandler;
+import com.alk.service.handler.PanHandler;
+import com.alk.service.handler.VoterHandler;
+import com.alk.service.handler.DrivingHandler;
+
+import org.springframework.stereotype.Service;
+
+@Service
+public class LinkageServiceImpl implements LinkageService {
+
+    private final AadhaarValidator aadhaarValidator;
+    private final PanValidator panValidator;
+    private final VoterValidator voterValidator;
+    private final DrivingValidator drivingValidator;
+
+    private final AadhaarHandler aadhaarHandler;
+    private final PanHandler panHandler;
+    private final VoterHandler voterHandler;
+    private final DrivingHandler drivingHandler;
+
+    public LinkageServiceImpl(
+            AadhaarValidator aadhaarValidator,
+            PanValidator panValidator,
+            VoterValidator voterValidator,
+            DrivingValidator drivingValidator,
+            AadhaarHandler aadhaarHandler,
+            PanHandler panHandler,
+            VoterHandler voterHandler,
+            DrivingHandler drivingHandler
+    ) {
+        this.aadhaarValidator = aadhaarValidator;
+        this.panValidator = panValidator;
+        this.voterValidator = voterValidator;
+        this.drivingValidator = drivingValidator;
+
+        this.aadhaarHandler = aadhaarHandler;
+        this.panHandler = panHandler;
+        this.voterHandler = voterHandler;
+        this.drivingHandler = drivingHandler;
+    }
+
+
+    // ---------------------------------------------------------------
+    // INSERT
+    // ---------------------------------------------------------------
+    @Override
+    public PiiResponseDto insert(ManageRequestDto request) {
+
+        String source = request.getSource().toUpperCase();
+
+        switch (source) {
+
+            case "AADHAAR":
+                aadhaarValidator.validateInsert(request);
+                return aadhaarHandler.handleInsert(request);
+
+            case "PAN":
+                panValidator.validateInsert(request);
+                return panHandler.handleInsert(request);
+
+            case "VOTER":
+                voterValidator.validateInsert(request);
+                return voterHandler.handleInsert(request);
+
+            case "DRIVING":
+                drivingValidator.validateInsert(request);
+                return drivingHandler.handleInsert(request);
+
+            default:
+                throw new RuntimeException("Invalid source for INSERT: " + source);
+        }
+    }
+
+
+    // ---------------------------------------------------------------
+    // UPDATE
+    // ---------------------------------------------------------------
+    @Override
+    public PiiResponseDto update(ManageRequestDto request) {
+
+        String source = request.getSource().toUpperCase();
+
+        switch (source) {
+
+            case "AADHAAR":
+                aadhaarValidator.validateUpdate(request);
+                return aadhaarHandler.handleUpdate(request);
+
+            case "PAN":
+                panValidator.validateUpdate(request);
+                return panHandler.handleUpdate(request);
+
+            case "VOTER":
+                voterValidator.validateUpdate(request);
+                return voterHandler.handleUpdate(request);
+
+            case "DRIVING":
+                drivingValidator.validateUpdate(request);
+                return drivingHandler.handleUpdate(request);
+
+            default:
+                throw new RuntimeException("Invalid source for UPDATE: " + source);
+        }
+    }
+
+
+    // ---------------------------------------------------------------
+    // DELETE
+    // ---------------------------------------------------------------
+    @Override
+    public PiiResponseDto delete(ManageRequestDto request) {
+
+        String source = request.getSource().toUpperCase();
+
+        switch (source) {
+
+            case "AADHAAR":
+                aadhaarValidator.validateDelete(request);
+                return aadhaarHandler.handleDelete(request);
+
+            case "PAN":
+                panValidator.validateDelete(request);
+                return panHandler.handleDelete(request);
+
+            case "VOTER":
+                voterValidator.validateDelete(request);
+                return voterHandler.handleDelete(request);
+
+            case "DRIVING":
+                drivingValidator.validateDelete(request);
+                return drivingHandler.handleDelete(request);
+
+            default:
+                throw new RuntimeException("Invalid source for DELETE: " + source);
+        }
+    }
+
+
+    // ---------------------------------------------------------------
+    // SEARCH
+    // ---------------------------------------------------------------
+    @Override
+    public PiiResponseDto search(ManageRequestDto request) {
+
+        String source = request.getSource().toUpperCase();
+
+        switch (source) {
+
+            case "AADHAAR":
+                aadhaarValidator.validateSearch(request);
+                return aadhaarHandler.handleSearch(request);
+
+            case "PAN":
+                panValidator.validateSearch(request);
+                return panHandler.handleSearch(request);
+
+            case "VOTER":
+                voterValidator.validateSearch(request);
+                return voterHandler.handleSearch(request);
+
+            case "DRIVING":
+                drivingValidator.validateSearch(request);
+                return drivingHandler.handleSearch(request);
+
+            default:
+                throw new RuntimeException("Invalid source for SEARCH: " + source);
+        }
+    }
+}
