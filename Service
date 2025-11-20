@@ -1,0 +1,309 @@
+package com.alk.service.validator;
+
+import com.alk.dto.LinkageRequest;
+import com.alk.dto.LinkageResponse;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public class RequestValidator {
+
+    private static final Set<String> VALID_ACTIONS = Set.of("INSERT","UPDATE","DELETE","SEARCH");
+    private static final Set<String> VALID_SOURCES = Set.of("AADHAAR","PAN","VOTER","DRIVING");
+
+    public LinkageResponse validate(LinkageRequest req) {
+        if (req == null) return LinkageResponse.error("Request payload cannot be null");
+
+        if (req.getAction() == null || req.getAction().isBlank())
+            return LinkageResponse.error("Action is required");
+
+        String action = req.getAction().trim().toUpperCase();
+        if (!VALID_ACTIONS.contains(action)) return LinkageResponse.error("Invalid action: " + req.getAction());
+
+        // For INSERT/UPDATE/DELETE we need source
+        if (!action.equals("SEARCH")) {
+            if (req.getSource() == null || req.getSource().isBlank())
+                return LinkageResponse.error("Source is required");
+            if (!VALID_SOURCES.contains(req.getSource().trim().toUpperCase()))
+                return LinkageResponse.error("Invalid source: " + req.getSource());
+        }
+
+        if (action.equals("INSERT") || action.equals("UPDATE")) {
+            Map<String, String> data = req.getData();
+            if (data == null || data.isEmpty()) return LinkageResponse.error("Data cannot be empty for INSERT/UPDATE");
+
+            // ensure all values are strings
+            for (Object v : data.values()) {
+                if (!(v instanceof String)) return LinkageResponse.error("All data fields must be strings");
+            }
+
+            List<String> required = List.of("forename", "dob");
+            for (String k : required) {
+                if (!data.containsKey(k) || data.get(k) == null || data.get(k).isBlank()) {
+                    return LinkageResponse.error(k + " is required");
+                }
+            }
+
+            // Allowed keys
+            Set<String> allowedKeys = Set.of(
+                "forename","secondname","lastname","dob",
+                "aadhaar_number","pan_number","dl_number",
+                "voter_id","address","gender","mobile","email","father_name","mother_name"
+            );
+
+            for (String k : data.keySet()) {
+                if (!allowedKeys.contains(k)) return LinkageResponse.error("Unknown field: " + k);
+            }
+
+            // Source-specific requirement
+            String src = req.getSource().trim().toUpperCase();
+            switch (src) {
+                case "AADHAAR":
+                    if (!data.containsKey("aadhaar_number") || !isValidAadhaar(data.get("aadhaar_number")))
+                        return LinkageResponse.error("aadhaar_number is required and must be 12 digits for Aadhaar");
+                    break;
+                case "PAN":
+                    if (!data.containsKey("pan_number") || !isValidPan(data.get("pan_number")))
+                        return LinkageResponse.error("pan_number is required and must be 10 alphanumeric characters for PAN");
+                    break;
+                case "VOTER":
+                    if (!data.containsKey("voter_id"))
+                        return LinkageResponse.error("voter_id is required for Voter insert/update");
+                    break;
+                case "DRIVING":
+                    if (!data.containsKey("dl_number"))
+                        return LinkageResponse.error("dl_number is required for Driving insert/update");
+                    break;
+            }
+        }
+
+        // UPDATE/DELETE/SEARCH require oldAadhaarLinkageKey presence (service will still check)
+        return LinkageResponse.success("VALID", null);
+    }
+
+    private boolean isValidAadhaar(String a) {
+        if (a == null) return false;
+        String only = a.trim();
+        return only.matches("\\d{12}");
+    }
+
+    private boolean isValidPan(String p) {
+        if (p == null) return false;
+        return p.trim().matches("[A-Z]{5}\\d{4}[A-Z]"); // typical PAN format
+    }
+}
+
+
+
+
+
+
+package com.alk.util;
+
+import java.util.Locale;
+import com.alk.util.HashUtil; // if HashUtil in same package adjust import
+
+public class PiiPkGenerator {
+
+    public static String generate(String forename, String lastname, String dob, String gender) {
+        String f = normalize(forename);
+        String l = normalize(lastname);
+        String d = normalize(dob);
+        String g = normalize(gender);
+        String concat = (f == null ? "" : f) + "|" + (l == null ? "" : l) + "|" + (d == null ? "" : d) + "|" + (g == null ? "" : g);
+        return HashUtil.sha256(concat);
+    }
+
+    private static String normalize(String s) {
+        if (s == null) return "";
+        return s.trim().toLowerCase(Locale.ROOT);
+    }
+}
+
+
+
+
+package com.alk.dto;
+
+import java.util.UUID;
+import java.util.List;
+import java.util.Map;
+
+public class PiiResponseDto {
+    private UUID alk;
+    private List<Map<String,Object>> linkedSources;
+    private String piiPk;
+
+    public PiiResponseDto() {}
+
+    public PiiResponseDto(UUID alk, List<Map<String,Object>> linkedSources, String piiPk) {
+        this.alk = alk;
+        this.linkedSources = linkedSources;
+        this.piiPk = piiPk;
+    }
+
+    public UUID getAlk() { return alk; }
+    public void setAlk(UUID alk) { this.alk = alk; }
+
+    public List<Map<String,Object>> getLinkedSources() { return linkedSources; }
+    public void setLinkedSources(List<Map<String,Object>> linkedSources) { this.linkedSources = linkedSources; }
+
+    public String getPiiPk() { return piiPk; }
+    public void setPiiPk(String piiPk) { this.piiPk = piiPk; }
+}
+
+
+
+
+package com.alk.service.handler;
+
+import com.alk.model.AadhaarData;
+import com.alk.model.Pii;
+import com.alk.repository.AadhaarRepository;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.Map;
+
+@Component
+public class AadhaarHandler {
+
+    private final AadhaarRepository aadhaarRepository;
+
+    public AadhaarHandler(AadhaarRepository aadhaarRepository) {
+        this.aadhaarRepository = aadhaarRepository;
+    }
+
+    public AadhaarData saveAadhaar(Map<String,String> data, Pii pii) {
+        AadhaarData a = new AadhaarData();
+        a.setPii(pii);
+
+        // set fields (conversions / parsing)
+        a.setAadhaarNumber(data.get("aadhaar_number"));
+        a.setForename(data.get("forename"));
+        a.setMiddleName(data.get("secondname"));
+        a.setLastName(data.get("lastname"));
+
+        try {
+            if (data.get("dob") != null) {
+                a.setDob(LocalDate.parse(data.get("dob")));
+            }
+        } catch (DateTimeParseException ex) {
+            // leave null — validation should have prevented bad formats
+        }
+
+        a.setGender(data.get("gender"));
+        a.setAddress(data.get("address"));
+        a.setParentGuardianName(data.get("parent_guardian_name"));
+        a.setMobileNumber(data.get("mobile"));
+        a.setEmail(data.get("email"));
+
+        return aadhaarRepository.save(a);
+    }
+}
+
+
+
+
+package com.alk.service.impl;
+
+import com.alk.dto.LinkageRequest;
+import com.alk.dto.LinkageResponse;
+import com.alk.dto.PiiResponseDto;
+import com.alk.model.Pii;
+import com.alk.repository.PiiRepository;
+import com.alk.service.handler.AadhaarHandler;
+import com.alk.service.validator.RequestValidator;
+import com.alk.util.PiiPkGenerator;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+
+@Service
+public class LinkageServiceImpl {
+
+    private final PiiRepository piiRepository;
+    private final AadhaarHandler aadhaarHandler;
+    private final RequestValidator validator;
+
+    public LinkageServiceImpl(PiiRepository piiRepository, AadhaarHandler aadhaarHandler) {
+        this.piiRepository = piiRepository;
+        this.aadhaarHandler = aadhaarHandler;
+        this.validator = new RequestValidator();
+    }
+
+    @Transactional
+    public LinkageResponse insert(LinkageRequest req) {
+        // 1. validate
+        LinkageResponse v = validator.validate(req);
+        if (!"SUCCESS".equals(v.getStatus())) return v;
+
+        Map<String,String> data = req.getData();
+        String forename = data.get("forename");
+        String lastname = data.get("lastname");
+        String dob = data.get("dob");
+        String gender = data.get("gender");
+
+        // 2. compute piiPk
+        String piiPk = PiiPkGenerator.generate(forename, lastname, dob, gender);
+
+        Optional<Pii> opt = piiRepository.findById(piiPk);
+        Pii p;
+        boolean createdNew = false;
+
+        if (opt.isPresent()) {
+            p = opt.get();
+        } else {
+            p = new Pii();
+            p.setPiiPk(piiPk);
+            p.setAlk(UUID.randomUUID()); // set ALK
+            p.setAadhaarCount(0);
+            p.setPanCount(0);
+            p.setVoterIdCount(0);
+            p.setDlCount(0);
+            createdNew = true;
+        }
+
+        // 3. handle source: we only implement Aadhaar here (similar handlers for other sources)
+        String source = req.getSource().trim().toUpperCase();
+        if ("AADHAAR".equals(source)) {
+            // if new OR previous aadhaar counter 0 -> set to 1
+            if (createdNew || p.getAadhaarCount() == 0) {
+                p.setAadhaarCount(1);
+            } else {
+                // idempotent: if Aadhaar already linked, do not double increment
+            }
+            // save Pii first so handler can FK to managed entity
+            piiRepository.save(p);
+
+            // save/addupsert AadhaarData linked to the pii
+            aadhaarHandler.saveAadhaar(data, p);
+        } else {
+            return LinkageResponse.error("INSERT implemented only for Aadhaar in this step");
+        }
+
+        // save Pii (counters updated)
+        piiRepository.save(p);
+
+        // build response summary
+        PiiResponseDto summary = buildSummary(p);
+
+        return LinkageResponse.success(createdNew ? "Record inserted successfully" : "Record merged", summary);
+    }
+
+    private PiiResponseDto buildSummary(Pii p) {
+        List<Map<String,Object>> sources = new ArrayList<>();
+        sources.add(Map.of("source","Aadhaar","counter", p.getAadhaarCount()));
+        sources.add(Map.of("source","PAN","counter", p.getPanCount()));
+        sources.add(Map.of("source","Voter","counter", p.getVoterIdCount()));
+        sources.add(Map.of("source","Driving","counter", p.getDlCount()));
+        return new PiiResponseDto(p.getAlk(), sources, p.getPiiPk());
+    }
+}
+
+
+
+
