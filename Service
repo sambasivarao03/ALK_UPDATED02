@@ -307,3 +307,45 @@ public class LinkageServiceImpl {
 
 
 
+
+package com.alk.controller;
+
+import com.alk.dto.ManageRequestDto;
+import com.alk.dto.PiiResponseDto;
+import com.alk.service.LinkageService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1")
+public class ManageController {
+
+    @Autowired
+    private LinkageService linkageService;
+
+    @PostMapping("/manage")
+    public PiiResponseDto manage(@RequestBody ManageRequestDto request) {
+
+        if (request.getAction() == null || request.getSource() == null) {
+            throw new RuntimeException("Action and Source are mandatory");
+        }
+
+        switch (request.getAction().toUpperCase()) {
+
+            case "INSERT":
+                return linkageService.insert(request);
+
+            case "UPDATE":
+                return linkageService.update(request);
+
+            case "DELETE":
+                return linkageService.delete(request);
+
+            case "SEARCH":
+                return linkageService.search(request);
+
+            default:
+                throw new RuntimeException("Invalid action: " + request.getAction());
+        }
+    }
+}
