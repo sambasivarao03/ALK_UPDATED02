@@ -349,3 +349,127 @@ public class ManageController {
         }
     }
 }
+
+
+
+
+
+
+package com.alk.service;
+
+import com.alk.dto.ManageRequestDto;
+import com.alk.dto.PiiResponseDto;
+
+public interface LinkageService {
+
+    PiiResponseDto insert(ManageRequestDto request);
+
+    PiiResponseDto update(ManageRequestDto request);
+
+    PiiResponseDto delete(ManageRequestDto request);
+
+    PiiResponseDto search(ManageRequestDto request);
+}
+
+
+
+package com.alk.service.impl;
+
+import com.alk.dto.ManageRequestDto;
+import com.alk.dto.PiiResponseDto;
+import com.alk.service.LinkageService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alk.service.validator.*;
+import com.alk.service.handler.*;
+
+@Service
+public class LinkageServiceImpl implements LinkageService {
+
+    @Autowired
+    private AadhaarValidator aadhaarValidator;
+    @Autowired
+    private PanValidator panValidator;
+    @Autowired
+    private VoterValidator voterValidator;
+    @Autowired
+    private DrivingValidator drivingValidator;
+
+    @Autowired
+    private AadhaarHandler aadhaarHandler;
+    @Autowired
+    private PanHandler panHandler;
+    @Autowired
+    private VoterHandler voterHandler;
+    @Autowired
+    private DrivingHandler drivingHandler;
+
+    @Override
+    public PiiResponseDto insert(ManageRequestDto request) {
+        return routeToSource(request, "INSERT");
+    }
+
+    @Override
+    public PiiResponseDto update(ManageRequestDto request) {
+        return routeToSource(request, "UPDATE");
+    }
+
+    @Override
+    public PiiResponseDto delete(ManageRequestDto request) {
+        return routeToSource(request, "DELETE");
+    }
+
+    @Override
+    public PiiResponseDto search(ManageRequestDto request) {
+        return routeToSource(request, "SEARCH");
+    }
+
+    private PiiResponseDto routeToSource(ManageRequestDto request, String action) {
+
+        String source = request.getSource().toUpperCase();
+
+        switch (source) {
+
+            case "AADHAAR":
+                aadhaarValidator.validate(request, action);
+                return aadhaarHandler.handle(request, action);
+
+            case "PAN":
+                panValidator.validate(request, action);
+                return panHandler.handle(request, action);
+
+            case "VOTER":
+                voterValidator.validate(request, action);
+                return voterHandler.handle(request, action);
+
+            case "DRIVING":
+                drivingValidator.validate(request, action);
+                return drivingHandler.handle(request, action);
+
+            default:
+                throw new RuntimeException("Invalid source: " + source);
+        }
+    }
+}
+
+
+package com.alk.service.handler;
+
+import com.alk.dto.ManageRequestDto;
+import com.alk.dto.PiiResponseDto;
+
+public interface BaseHandler {
+    PiiResponseDto handle(ManageRequestDto request, String action);
+}
+
+
+
+
+@Service
+public class AadhaarHandler implements BaseHandler {
+    @Override
+    public PiiResponseDto handle(ManageRequestDto request, String action) {
+        return null; // logic later
+    }
+}
