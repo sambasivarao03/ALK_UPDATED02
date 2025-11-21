@@ -1,0 +1,469 @@
+Aadhaar-Linkage Microservice
+Data Source: 
+1. Aadhaar Data (UIDAI)
+The Unique Identification Authority of India (UIDAI) maintains a minimal set of demographic and biometric data for each Aadhaar number holder. The UIDAI's policy strictly prohibits collecting sensitive personal information.
+Key Data Fields:
+
+Aadhaar Number: A 12-digit unique identification number.
+
+
+Name: The full name of the individual.
+
+
+Date of Birth: The person's date of birth.
+
+
+Gender: The person's gender.
+
+
+Address: The residential address.
+
+
+Parent/Guardian Name: Required for children.
+
+
+Mobile Number: (Optional)
+
+
+Email ID: (Optional)
+
+2. PAN Data (NSDL)
+The Permanent Account Number (PAN) is a ten-character alphanumeric identifier issued by the Income Tax Department. The data collected is primarily for tax and financial purposes.
+Key Data Fields:
+
+PAN Number: The 10-character alphanumeric PAN.
+
+
+Name: The full name of the individual (first, middle, and last names).
+
+
+Father's Name: Mandatory, even for married women.
+
+
+Mother's Name: (Optional)
+
+
+Date of Birth: For individuals, or Date of Incorporation/Formation for other entities.
+
+
+Gender: For individual applicants.
+
+
+Address: The communication address (residence or office).
+
+
+Telephone/Mobile Number:
+
+
+Email ID:
+
+
+Aadhaar Number: Often linked to the PAN.
+
+3. Voter ID (ECI)
+The Voter ID (officially the Electoral Photo Identity Card or EPIC) is issued by the Election Commission of India (ECI) for voting and serves as a general identity, address, and age proof.
+Key Data Fields:
+
+Voter ID Number (EPIC Number): A unique alphanumeric number.
+
+
+Name: The voter's name.
+
+
+Relative's Name: The name of a chosen relative (e.g., father or mother).
+
+
+Photograph: The voter's picture.
+
+
+Age: The person's age.
+
+
+Address: The home address of the voter.
+
+
+Electoral District: The district the voter is registered in.
+
+
+Assembly Constituency: The constituency the voter belongs to.
+
+
+Part Number: A number to help locate the voter on the electoral roll.
+
+4. Driving License (Sarathi/Parivahan)
+The driving license is managed by the Ministry of Road Transport & Highways, with the Sarathi portal handling driver-related services.
+Key Data Fields:
+
+Driving License Number: A unique alphanumeric license number.
+
+
+Name: The full name of the license holder (first, middle, and last).
+
+
+Date of Birth: The date of birth.
+
+
+Address: The residential address.
+
+
+Issue Date: The date the license was issued.
+
+
+Expiration Date: The date the license expires.
+
+
+License Class: The type of vehicle(s) the person is authorized to drive (e.g., motorcycle, car, heavy vehicle).
+
+
+Gender: The person's gender.
+
+
+Height: The person's height.
+
+
+Blood Type: (Optional, often a fillable field).
+
+
+Photograph: A photo of the license holder.
+
+Project Goal:
+ To build a robust Spring Boot microservice called aadhaar-linkage-service that acts as a central hub for managing and linking personal identity data across various Indian data sources. The service's primary function is to maintain a single, unique AadhaarLinkageKey (ALK) for each individual, associating it with data from sources like Aadhaar, PAN, Voter ID, and Driving License.
+
+Core Business Logic & Rules:
+
+
+Primary Key: The AadhaarLinkageKey
+(ALK) is the definitive identifier for a person within our system. It is a system-generated, unique key.
+
+
+Data Matching for Linking: The service will use
+a combination of PII fields (foreName, secondName, lastName, DOB, Aadhaar Number, and an optional Address) to search for an existing person record in the database.
+
+
+Idempotent & Reference-Based Linking: If a person's
+data is submitted from a new data source (e.g., PAN), the service will search for an existing record. If found, it will assign the same ALK to the PAN data and increment the counter for the PAN data source. If no match is found, a new ALK will be created, and
+the counter for the originating data source will be set to 1.
+
+
+Controlled Deletion: A person's record can only
+be permanently deleted when all associated data source counters are 0.
+
+
+Secure & Immutable Updates: An update of a person's
+PII does not modify the existing record. Instead, it creates a new record with a new AadhaarLinkageKey.
+The counter on the old record, for the source that initiated the update, is then decremented.
+
+
+Single-Point API: All actions (Insert, Update,
+Delete) will be handled by a single, intelligent API endpoint using an action
+field in the request payload.
+
+ 
+ 
+2. System Design & Data Model
+2.1. Core Entity & Data Sources
+The primary entity is a "Person," with data coming from four main sources.
+Data Source
+Key Data Fields
+Aadhaar Data (UIDAI)
+Aadhaar Number, Name (full), Date of Birth, Gender, Address, Parent/Guardian Name (Optional), Mobile, Email
+PAN Data (NSDL)
+PAN Number, Name (full), Father's Name, Mother's Name (Optional), Date of Birth, Gender, Address, Telephone/Mobile, Email, Aadhaar Number (linked)
+Voter ID (ECI)
+Voter ID Number (EPIC), Name, Relative's Name, Age, Address, Electoral District, Part Number
+Driving License (Vahan)
+Driving License Number, Name (full), Date of Birth, Address, Issue Date, Expiration Date, License Class, Gender, Height, Blood Type (Optional)
+
+2.2. Database Table: person_identity
+This table will store the core data for each individual. All PII data will be stored as hashed values.
+Field Name
+Data Type
+Constraint/Description
+aadhaar_linkage_key
+VARCHAR(36)
+Primary Key. A unique UUID for each person.
+hashed_aadhaar_number
+VARCHAR(64)
+Hashed Aadhaar number (e.g., SHA-256).
+hashed_pan_number
+VARCHAR(64)
+Hashed PAN number.
+hashed_voter_id
+VARCHAR(64)
+Hashed Voter ID.
+hashed_dl_number
+VARCHAR(64)
+Hashed Driving License number.
+hashed_forename
+VARCHAR(64)
+Hashed first name.
+hashed_secondname
+VARCHAR(64)
+Hashed middle name.
+hashed_lastname
+VARCHAR(64)
+Hashed last name.
+hashed_dob
+VARCHAR(64)
+Hashed Date of Birth.
+hashed_address
+VARCHAR(64)
+Hashed residential address.
+gender
+VARCHAR(10)
+Gender (e.g., 'Male', 'Female'). Can be stored in plain text.
+aadhaar_counter
+INT
+Counter for Aadhaar data source references. Max value 999. Default 0.
+pan_counter
+INT
+Counter for PAN data source references. Default 0.
+voter_id_counter
+INT
+Counter for Voter ID data source references. Default 0.
+dl_counter
+INT
+Counter for Driving License data source references. Default 0.
+created_at
+TIMESTAMP
+Timestamp of record creation.
+updated_at
+TIMESTAMP
+Timestamp of last update.
+
+ 
+ 
+3. API Specification (REST Endpoints)
+All actions will be handled via a single POST endpoint with a dynamic action field.
+3.1. Endpoint: /api/v1/person/manage
+
+Method: POST
+
+
+Description: A versatile endpoint that handles
+all identity management operations.
+
+
+Request Body (General Structure):
+
+
+JSON
+
+
+{
+  "action": "INSERT" | "UPDATE" | "DELETE" | "SEARCH",
+  "source": "Aadhaar" | "PAN" | "Voter" | "Driving",
+  "data": {
+   
+  }
+}
+ 
+ 
+4. Business Logic Implementation Details
+4.1. Action: INSERT
+
+Input Data: source
+and a JSON object containing the person's PII (foreName,
+secondName, lastName,
+dob, aadhaarNumber,
+etc.).
+
+
+Logic:
+
+
+
+Hash All PII: Immediately hash all incoming PII
+data (e.g., foreName, dob,
+aadhaarNumber) using SHA-256. The raw
+data is never used beyond this step.
+
+
+Search Logic: Use the hashed PII fields (hashed_forename,
+hashed_lastname, hashed_dob,
+hashed_aadhaar_number) to search for
+an existing record in the database.
+
+
+If a match is found:
+
+
+
+Increment the counter for the specified source
+(e.g., pan_counter++).
+
+
+Do not
+create a new record.
+
+
+Return the existing aadhaar_linkage_key.
+
+
+
+If no match is found:
+
+
+
+Generate a new UUID for aadhaar_linkage_key.
+
+
+Create a new record in the person_identity
+table with all the hashed PII and the new aadhaar_linkage_key.
+
+
+Set the counter for the specified source
+to 1. All other counters will be 0.
+
+
+Return the new aadhaar_linkage_key.
+
+
+
+4.2. Action: UPDATE
+
+Input Data: source,
+oldAadhaarLinkageKey, and data
+containing the new PII.
+
+
+Logic:
+
+
+
+Create New Record: The service must not
+modify the existing record. Instead, it will:
+
+
+
+Generate a new UUID for a new aadhaar_linkage_key.
+
+
+Hash the new
+PII data from the request.
+
+
+Create a brand new record with the new aadhaar_linkage_key
+and hashed PII.
+
+
+Set the counter for the specified source
+to 1 on this new record.
+
+
+
+Unlink Old Record: Now, find the old record using
+the oldAadhaarLinkageKey.
+
+
+Decrement the counter for the specified source
+on the old record.
+
+
+Conditional Deletion: Check if all counters on
+the old record are now 0. If so, permanently
+delete the old record.
+
+
+Return: Return the new
+aadhaar_linkage_key and a status message
+regarding the old record.
+
+
+4.3. Action: DELETE
+
+Input Data: source
+and aadhaarLinkageKey.
+
+
+Logic:
+
+
+
+Find the record using the aadhaarLinkageKey.
+
+
+Decrement the counter for the specified source.
+
+
+Check if all counters are 0.
+If so, delete the entire record. Otherwise, simply save the record with the decremented counter.
+
+
+4.4. Action: SEARCH
+
+Input Data: aadhaarLinkageKey.
+
+
+Logic:
+
+
+
+Find the record using the aadhaarLinkageKey.
+
+
+Unhashing for Display (Crucial Security Note):
+You cannot unhash a value. A cryptographic hash function is a one-way street.
+To display data to the user, the service should never return the original
+PII. Instead, it should return an object that indicates which data sources are linked and their counter values.
+
+
+Correct Implementation for Verification: If a
+user needs to verify a person's identity, the service should expose a verification endpoint. The user would submit the aadhaar_linkage_key
+along with some PII (e.g., their name and DOB). The service would then hash the provided PII and compare the generated hash with the stored hash in the database. This confirms a match without ever storing or revealing the raw PII.
+
+
+Proposed SEARCH
+Output: The service should return a JSON object that shows the aadhaar_linkage_key
+and the status of each counter, which indicates which sources are linked.
+
+
+
+JSON
+
+
+{
+  "aadhaarLinkageKey": "00000000001",
+  "linkedSources": [
+    { "source": "Aadhaar", "counter": 2 },
+    { "source": "PAN", "counter": 1 },
+    { "source": "Voter", "counter": 0 },
+    { "source": "Driving", "counter": 0 }
+  ]
+}
+
+ 
+ 
+5. Technical & Security Requirements
+
+Hashing Algorithm: Use a strong, standard
+one-way hash algorithm like SHA-256 for all PII data. Implement a utility class for handling hashing.
+
+
+Database: A relational database (H2 for local
+development, PostgreSQL for production) will be used with Spring Data JPA.
+
+
+Address Handling (Addressing the Indian Context):
+Since addresses can vary slightly, a strict hash match may fail. For this project, a simple hashing of the full address string is sufficient to demonstrate the concept. In a real-world scenario, you would use a dedicated address verification service or a more
+advanced fuzzy matching algorithm, which is beyond the scope of this project.
+
+
+Project Structure: Follow a standard Spring Boot
+project layout (e.g., com.example.aadhaar.controller,
+com.example.aadhaar.service, etc.).
+
+
+API Documentation: The project must include
+a README.md file with clear instructions
+on building, running, and using the API, including example JSON payloads for all actions.
+
+
+
+Target :
+
+1. Create Rest API (2)
+2. Insert and search (2)
+3. Fetch and delete  (2)
+4. Update (1)
+5. All data must be encrypted in DB (3)
