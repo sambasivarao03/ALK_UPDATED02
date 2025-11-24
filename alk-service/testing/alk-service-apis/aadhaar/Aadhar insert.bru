@@ -1,0 +1,40 @@
+meta {
+  name: Aadhar insert
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/manage
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "action": "INSERT",
+    "source": "VOTER",
+    "voter": {
+      "epicNumber": "AP1234567890",
+      "relativeName": "Rama Rao",
+      "electoralDistrict": "Guntur",
+      "assemblyConstituency": "Mangalagiri",
+      "partNumber": "45",
+      "photograph": "SGVsbG8gV29ybGQ=", 
+      "person": {
+        "forename": "Samba siva",
+        "middleName": "",
+        "lastName": "Rao",
+        "dob": "1999-07-12",
+        "gender": "M",
+        "address": "Guntur, AP"
+      }
+    }
+  }
+  
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
